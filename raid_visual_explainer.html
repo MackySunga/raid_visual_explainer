@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAID Visual Explainer</title>
+  <style>
+    :root {
+      --bg1: #0f172a;
+      --bg2: #111827;
+      --panel: rgba(255,255,255,0.08);
+      --panel-strong: rgba(255,255,255,0.12);
+      --text: #e5eefb;
+      --muted: #b6c2d9;
+      --accent: #7c3aed;
+      --accent2: #22c55e;
+      --accent3: #f59e0b;
+      --danger: #ef4444;
+      --line: rgba(255,255,255,0.12);
+      --shadow: 0 18px 45px rgba(0,0,0,0.28);
+      --radius: 22px;
+      --disk-width: 92px;
+      --disk-height: 280px;
+      --cell-height: 32px;
+      --cell-gap: 7px;
+      --cell-radius: 9px;
+      --anim-duration: 1500ms;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(124,58,237,0.35), transparent 30%),
+        radial-gradient(circle at top right, rgba(34,197,94,0.22), transparent 25%),
+        linear-gradient(160deg, var(--bg1), var(--bg2));
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .bg-grid::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 28px 28px;
+      pointer-events: none;
+      mask-image: radial-gradient(circle at center, black 35%, transparent 90%);
+      opacity: 0.35;
+    }
+
+    .container {
+      width: min(1280px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 36px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 22px;
+      align-items: stretch;
+      margin-bottom: 22px;
+    }
+
+    .hero-banner {
+      padding: 22px 26px;
+      margin-bottom: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      background: linear-gradient(135deg, rgba(96,165,250,0.2), rgba(34,197,94,0.18), rgba(245,158,11,0.16));
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-banner::after {
+      content: "";
+      position: absolute;
+      right: -60px;
+      top: -80px;
+      width: 220px;
+      height: 220px;
+      background: radial-gradient(circle, rgba(255,255,255,0.22), transparent 70%);
+      opacity: 0.8;
+    }
+
+    .hero-banner h2 {
+      margin: 0;
+      font-size: clamp(1.4rem, 2.2vw, 2rem);
+      letter-spacing: -0.02em;
+    }
+
+    .hero-meta {
+      display: grid;
+      gap: 6px;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+
+    .hero-meta span {
+      color: var(--muted);
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .hero-card {
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      right: -50px;
+      top: -50px;
+      width: 180px;
+      height: 180px;
+      background: radial-gradient(circle, rgba(255,255,255,0.18), transparent 65%);
+      animation: pulseGlow 5s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { transform: scale(0.95); opacity: 0.6; }
+      50% { transform: scale(1.12); opacity: 1; }
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 1.3rem;
+      letter-spacing: -0.02em;
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 18px 0 18px;
+    }
+
+    .pill {
+      padding: 9px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.08);
+      font-size: 0.92rem;
+      color: var(--text);
+      animation: floaty 4.6s ease-in-out infinite;
+    }
+
+    .pill:nth-child(2) { animation-delay: 0.7s; }
+    .pill:nth-child(3) { animation-delay: 1.4s; }
+    .pill:nth-child(4) { animation-delay: 2.1s; }
+
+    @keyframes floaty {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+
+    .control-panel {
+      padding: 22px;
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 11px 16px;
+      cursor: pointer;
+      font-weight: 700;
+      color: white;
+      background: linear-gradient(135deg, var(--accent), #5b21b6);
+      box-shadow: 0 8px 18px rgba(124,58,237,0.26);
+      transition: transform 0.2s ease, filter 0.2s ease, opacity 0.2s ease;
+    }
+
+    button.secondary {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: none;
+    }
+
+    button:hover { transform: translateY(-2px); filter: brightness(1.06); }
+
+    select, input[type="range"] {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      padding: 12px 14px;
+      outline: none;
+    }
+
+    select option {
+      color: black;
+    }
+
+    .inline-labels {
+      display: grid;
+      gap: 8px;
+    }
+
+    .small {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(170px, 1fr));
+      gap: 14px;
+      margin: 0 0 22px;
+    }
+
+    .raid-card {
+      padding: 18px;
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .raid-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(255,255,255,0.22);
+    }
+
+    .raid-card.active {
+      background: rgba(124,58,237,0.18);
+      border-color: rgba(255,255,255,0.26);
+      transform: translateY(-4px);
+    }
+
+    .raid-card .badge {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.1);
+      font-size: 0.78rem;
+      margin-bottom: 10px;
+    }
+
+    .raid-card strong {
+      display: block;
+      font-size: 1.15rem;
+      margin-bottom: 6px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 22px;
+      margin-bottom: 22px;
+    }
+
+    .visual-panel {
+      padding: 22px;
+      min-height: 580px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .visual-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+    }
+
+    .dot.a { background: #60a5fa; }
+    .dot.b { background: #34d399; }
+    .dot.c { background: #fbbf24; }
+    .dot.p { background: #f87171; }
+    .dot.copy { background: #c084fc; }
+    .dot.empty { background: rgba(255,255,255,0.16); }
+
+    .diagram-wrap {
+      position: relative;
+      min-height: 450px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      padding: 24px;
+      overflow: hidden;
+    }
+
+    .data-ribbon {
+      position: absolute;
+      left: 24px;
+      right: 24px;
+      top: 22px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      min-height: 44px;
+    }
+
+    .source-block {
+      width: 58px;
+      height: 34px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      color: #0b1022;
+      position: relative;
+      box-shadow: 0 8px 14px rgba(0,0,0,0.16);
+      animation: drift 3.6s ease-in-out infinite;
+    }
+
+    .source-block.a { background: #60a5fa; }
+    .source-block.b { background: #34d399; animation-delay: 0.25s; }
+    .source-block.c { background: #fbbf24; animation-delay: 0.5s; }
+    .source-block.p { background: #f87171; animation-delay: 0.75s; }
+
+    @keyframes drift {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+
+    .arrow-zone {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 76px;
+      height: 84px;
+      pointer-events: none;
+    }
+
+    .beam {
+      position: absolute;
+      top: 16px;
+      height: 3px;
+      background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.7), rgba(255,255,255,0));
+      border-radius: 999px;
+      transform-origin: left center;
+      opacity: 0.55;
+      animation: sweep 2.4s linear infinite;
+    }
+
+    @keyframes sweep {
+      0% { transform: scaleX(0.25); opacity: 0.2; }
+      50% { transform: scaleX(1); opacity: 0.9; }
+      100% { transform: scaleX(0.25); opacity: 0.2; }
+    }
+
+    .disk-bank {
+      position: absolute;
+      left: 24px;
+      right: 24px;
+      bottom: 22px;
+      display: flex;
+      gap: 18px;
+      justify-content: center;
+      align-items: flex-end;
+    }
+
+    .disk {
+      width: var(--disk-width);
+      min-width: var(--disk-width);
+      border-radius: 18px;
+      padding: 14px 12px 12px;
+      background: rgba(8, 15, 35, 0.88);
+      border: 1px solid rgba(255,255,255,0.14);
+      position: relative;
+      box-shadow: 0 14px 24px rgba(0,0,0,0.25);
+      overflow: hidden;
+    }
+
+    .disk::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 6px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.18), rgba(255,255,255,0.02));
+    }
+
+    .disk-label {
+      text-align: center;
+      font-weight: 800;
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+      color: white;
+      letter-spacing: 0.03em;
+    }
+
+    .slots {
+      display: grid;
+      gap: var(--cell-gap);
+      min-height: calc(var(--cell-height) * 6 + var(--cell-gap) * 5);
+    }
+
+    .cell {
+      height: var(--cell-height);
+      border-radius: var(--cell-radius);
+      background: rgba(255,255,255,0.08);
+      display: grid;
+      place-items: center;
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #0b1022;
+      position: relative;
+      overflow: hidden;
+      opacity: 0.32;
+      transform: translateY(12px) scale(0.95);
+      transition: opacity 0.25s ease, transform 0.25s ease, background 0.25s ease;
+    }
+
+    .cell.show {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      animation: popIn 500ms ease;
+    }
+
+    @keyframes popIn {
+      0% { transform: translateY(12px) scale(0.92); }
+      60% { transform: translateY(-2px) scale(1.02); }
+      100% { transform: translateY(0) scale(1); }
+    }
+
+    .cell.a { background: #60a5fa; }
+    .cell.b { background: #34d399; }
+    .cell.c { background: #fbbf24; }
+    .cell.p { background: #f87171; }
+    .cell.copy { background: #c084fc; color: #160625; }
+    .cell.empty { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.55); }
+    .cell.failed {
+      background: repeating-linear-gradient(45deg, rgba(239,68,68,0.95), rgba(239,68,68,0.95) 10px, rgba(255,255,255,0.9) 10px, rgba(255,255,255,0.9) 20px);
+      color: #111827;
+    }
+
+    .side-panel {
+      padding: 22px;
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      padding: 14px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+    }
+
+    .stat .label {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .stat .value {
+      font-size: 1rem;
+      font-weight: 800;
+    }
+
+    .info-box {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .comparison {
+      padding: 22px;
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+
+    th, td {
+      padding: 14px 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      vertical-align: top;
+    }
+
+    th {
+      color: white;
+      font-size: 0.92rem;
+      letter-spacing: 0.03em;
+      background: rgba(255,255,255,0.04);
+      position: sticky;
+      top: 0;
+    }
+
+    .footer-note {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .warning {
+      border-left: 4px solid var(--danger);
+      padding-left: 12px;
+    }
+
+    .success {
+      border-left: 4px solid var(--accent2);
+      padding-left: 12px;
+    }
+
+    .callout {
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(124,58,237,0.2), rgba(34,197,94,0.12));
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .top-links {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    .link-chip {
+      display: inline-block;
+      text-decoration: none;
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .link-chip:hover { transform: translateY(-2px); background: rgba(255,255,255,0.12); }
+
+    @media (max-width: 1100px) {
+      .hero, .layout {
+        grid-template-columns: 1fr;
+      }
+      .cards-grid {
+        grid-template-columns: repeat(2, minmax(170px, 1fr));
+      }
+    }
+
+    @media (max-width: 700px) {
+      .container { width: min(100% - 18px, 100%); }
+      .cards-grid { grid-template-columns: 1fr; }
+      .visual-panel { min-height: 660px; }
+      .disk-bank { gap: 10px; }
+      .disk {
+        width: 78px;
+        min-width: 78px;
+      }
+      .source-block { width: 52px; }
+      th, td { padding: 10px 8px; }
+    }
+  </style>
+</head>
+<body class="bg-grid">
+  <div class="container">
+    <section class="hero-banner card">
+      <div>
+        <h1>RAID Visual Explainer</h1>
+        <p>
+          Learn how <strong>RAID</strong> or <strong>Redundant Array of Independent Disks</strong> works through animated storage diagrams.
+          This page compares the most common RAID levels and shows how data is striped, mirrored, and protected with parity.
+        </p>
+        <div class="pill-row">
+          <div class="pill">RAID 0 = speed</div>
+          <div class="pill">RAID 1 = mirroring</div>
+          <div class="pill">RAID 5 = parity</div>
+          <div class="pill">RAID 10 = speed + safety</div>
+        </div>
+        <div class="top-links">
+          <a class="link-chip" href="#levels">Jump to RAID Levels</a>
+          <a class="link-chip" href="#compare">Jump to Comparison Table</a>
+        </div>
+        <div class="callout">
+          <strong>Important:</strong> RAID improves availability, but it is <strong>not a backup</strong>. It does not protect against accidental deletion, malware, or site damage.
+        </div>
+      </div>
+      <div class="hero-meta">
+        <div><span>Created by:</span> Bob Mathew D. Sunga</div>
+        <div><span>Program:</span> AIM, MSDS2026</div>
+      </div>
+    </section>
+    <section class="hero">
+      <div class="control-panel card">
+        <h2>Animation Controls</h2>
+        <div class="inline-labels">
+          <label for="raidSelect">Choose a RAID level</label>
+          <select id="raidSelect">
+            <option value="raid0">RAID 0</option>
+            <option value="raid1">RAID 1</option>
+            <option value="raid5">RAID 5</option>
+            <option value="raid6">RAID 6</option>
+            <option value="raid10">RAID 10</option>
+          </select>
+        </div>
+        <div class="inline-labels">
+          <label for="speedRange">Animation speed</label>
+          <input id="speedRange" type="range" min="700" max="2500" step="100" value="1500" />
+          <div class="small">Lower value = faster animation</div>
+        </div>
+        <div class="button-row">
+          <button id="playPauseBtn">Pause Animation</button>
+          <button class="secondary" id="replayBtn">Replay</button>
+          <button class="secondary" id="failBtn">Simulate Drive Failure</button>
+        </div>
+        <p class="small">
+          The failure button helps visualize fault tolerance. RAID 0 should fail completely. RAID 1, RAID 5, RAID 6, and RAID 10 behave differently.
+        </p>
+      </div>
+    </section>
+
+    <section id="levels" class="cards-grid">
+      <article class="raid-card card active" data-raid="raid0">
+        <div class="badge">Striping</div>
+        <strong>RAID 0</strong>
+        <p>Fastest option, but no protection if a drive fails.</p>
+      </article>
+      <article class="raid-card card" data-raid="raid1">
+        <div class="badge">Mirroring</div>
+        <strong>RAID 1</strong>
+        <p>Copies the same data across drives for safety.</p>
+      </article>
+      <article class="raid-card card" data-raid="raid5">
+        <div class="badge">Parity</div>
+        <strong>RAID 5</strong>
+        <p>Balances speed, storage efficiency, and one-drive protection.</p>
+      </article>
+      <article class="raid-card card" data-raid="raid6">
+        <div class="badge">Double Parity</div>
+        <strong>RAID 6</strong>
+        <p>Similar to RAID 5, but can survive two drive failures.</p>
+      </article>
+      <article class="raid-card card" data-raid="raid10">
+        <div class="badge">Hybrid</div>
+        <strong>RAID 10</strong>
+        <p>Mirroring plus striping for performance and resilience.</p>
+      </article>
+    </section>
+
+    <section class="layout">
+      <div class="visual-panel card">
+        <div class="visual-top">
+          <div>
+            <h2 id="raidTitle">RAID 0</h2>
+            <p id="raidSubtitle">Data is striped across disks for speed, but there is no redundancy.</p>
+          </div>
+          <div class="legend">
+            <div class="legend-item"><span class="dot a"></span> Data A</div>
+            <div class="legend-item"><span class="dot b"></span> Data B</div>
+            <div class="legend-item"><span class="dot c"></span> Data C</div>
+            <div class="legend-item"><span class="dot p"></span> Parity</div>
+            <div class="legend-item"><span class="dot copy"></span> Mirror</div>
+          </div>
+        </div>
+
+        <div class="diagram-wrap" id="diagramWrap">
+          <div class="data-ribbon" id="dataRibbon"></div>
+          <div class="arrow-zone" id="arrowZone"></div>
+          <div class="disk-bank" id="diskBank"></div>
+        </div>
+      </div>
+
+      <aside class="side-panel card">
+        <div>
+          <h2>How this RAID works</h2>
+          <p id="raidDescription"></p>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat">
+            <div class="label">Minimum drives</div>
+            <div class="value" id="statMin">2</div>
+          </div>
+          <div class="stat">
+            <div class="label">Fault tolerance</div>
+            <div class="value" id="statFault">0 drives</div>
+          </div>
+          <div class="stat">
+            <div class="label">Usable storage</div>
+            <div class="value" id="statStorage">100%</div>
+          </div>
+          <div class="stat">
+            <div class="label">Best for</div>
+            <div class="value" id="statBest">Speed only</div>
+          </div>
+        </div>
+
+        <div class="info-box success">
+          <h3>Advantage</h3>
+          <p id="raidAdvantage"></p>
+        </div>
+
+        <div class="info-box warning">
+          <h3>Limitation</h3>
+          <p id="raidLimitation"></p>
+        </div>
+
+        <div class="info-box">
+          <h3>Failure behavior</h3>
+          <p id="failureNote"></p>
+        </div>
+      </aside>
+    </section>
+
+    <section id="compare" class="comparison card">
+      <h2>Quick Comparison</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>RAID Level</th>
+            <th>Main Technique</th>
+            <th>Minimum Drives</th>
+            <th>Can Survive</th>
+            <th>Usable Capacity</th>
+            <th>Typical Use</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>RAID 0</strong></td>
+            <td>Striping</td>
+            <td>2</td>
+            <td>0 failed drives</td>
+            <td>All drives combined</td>
+            <td>Scratch disks, temporary high-speed workloads</td>
+          </tr>
+          <tr>
+            <td><strong>RAID 1</strong></td>
+            <td>Mirroring</td>
+            <td>2</td>
+            <td>1 drive in a two-drive mirror</td>
+            <td>About 50%</td>
+            <td>Important files, small servers, boot drives</td>
+          </tr>
+          <tr>
+            <td><strong>RAID 5</strong></td>
+            <td>Striping + parity</td>
+            <td>3</td>
+            <td>1 failed drive</td>
+            <td>Total minus one drive</td>
+            <td>File servers, shared storage</td>
+          </tr>
+          <tr>
+            <td><strong>RAID 6</strong></td>
+            <td>Striping + double parity</td>
+            <td>4</td>
+            <td>2 failed drives</td>
+            <td>Total minus two drives</td>
+            <td>Large arrays, safer archival storage</td>
+          </tr>
+          <tr>
+            <td><strong>RAID 10</strong></td>
+            <td>Mirroring + striping</td>
+            <td>4</td>
+            <td>Depends on which drives fail</td>
+            <td>About 50%</td>
+            <td>Databases, virtual machines, high-performance systems</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="footer-note">
+        RAID 2, RAID 3, and RAID 4 exist historically but are uncommon in modern everyday deployments. RAID 50 and RAID 60 are enterprise combinations built on RAID 5 and RAID 6 groups.
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const raidData = {
+      raid0: {
+        title: 'RAID 0',
+        subtitle: 'Data is striped across disks for speed, but there is no redundancy.',
+        description: 'RAID 0 splits or stripes data across multiple drives. This increases read and write speed because several disks work at the same time. However, there is no duplicate copy and no parity information to rebuild lost data.',
+        min: '2',
+        fault: '0 drives',
+        storage: '100%',
+        best: 'Pure speed',
+        advantage: 'Excellent performance and full use of raw storage capacity.',
+        limitation: 'If one drive fails, all striped data is broken and the entire array is effectively lost.',
+        failure: 'A single failed disk breaks the whole set because every file is spread across all disks.',
+        sourceBlocks: ['A1','B1','C1','A2','B2','C2'],
+        disks: [
+          { label: 'Disk 1', cells: ['A1','C1','B2','-','-','-'] },
+          { label: 'Disk 2', cells: ['B1','A2','C2','-','-','-'] },
+          { label: 'Disk 3', cells: ['C1*','B1*','A2*','-','-','-'], alias: true }
+        ],
+        animateMap: [
+          { disk: 0, cell: 0, delay: 0 },
+          { disk: 1, cell: 0, delay: 1 },
+          { disk: 2, cell: 0, delay: 2 },
+          { disk: 0, cell: 1, delay: 3 },
+          { disk: 1, cell: 1, delay: 4 },
+          { disk: 2, cell: 1, delay: 5 },
+          { disk: 0, cell: 2, delay: 6 },
+          { disk: 1, cell: 2, delay: 7 },
+          { disk: 2, cell: 2, delay: 8 }
+        ],
+        failureDisks: [1],
+        failureMessage: 'RAID 0 failure demo: because striping has no redundancy, losing one disk means the full array becomes unusable.',
+        beamTargets: [22, 49, 76]
+      },
+      raid1: {
+        title: 'RAID 1',
+        subtitle: 'The same data is mirrored to another drive for protection.',
+        description: 'RAID 1 writes an identical copy of each block to a partner drive. You lose some storage capacity, but gain strong data protection and simple recovery.',
+        min: '2',
+        fault: '1 drive in a typical 2-drive mirror',
+        storage: '50%',
+        best: 'Simple reliability',
+        advantage: 'Very reliable and easy to understand. Recovery from one failed drive is straightforward.',
+        limitation: 'Only half of the raw storage is usable in the usual two-drive mirror.',
+        failure: 'If one disk fails, the mirrored copy on the other disk still contains the full data.',
+        sourceBlocks: ['A','B','C','D'],
+        disks: [
+          { label: 'Disk 1', cells: ['A','B','C','D','-','-'] },
+          { label: 'Disk 2', cells: ['A','B','C','D','-','-'] }
+        ],
+        animateMap: [
+          { disk: 0, cell: 0, delay: 0 }, { disk: 1, cell: 0, delay: 0 },
+          { disk: 0, cell: 1, delay: 1 }, { disk: 1, cell: 1, delay: 1 },
+          { disk: 0, cell: 2, delay: 2 }, { disk: 1, cell: 2, delay: 2 },
+          { disk: 0, cell: 3, delay: 3 }, { disk: 1, cell: 3, delay: 3 }
+        ],
+        failureDisks: [0],
+        failureMessage: 'RAID 1 failure demo: one mirrored drive fails, but the other still has a full copy of the data.',
+        beamTargets: [36, 64]
+      },
+      raid5: {
+        title: 'RAID 5',
+        subtitle: 'Striped data plus distributed parity gives one-drive fault tolerance.',
+        description: 'RAID 5 stripes data across the array and distributes parity blocks among the drives. If one disk fails, the missing data can be reconstructed using the remaining data blocks and parity.',
+        min: '3',
+        fault: '1 drive',
+        storage: 'Total minus 1 drive',
+        best: 'Balanced capacity and protection',
+        advantage: 'Good balance of read performance, usable capacity, and redundancy.',
+        limitation: 'Write operations are slower than RAID 0 because parity must be computed and stored.',
+        failure: 'One failed drive can be rebuilt from parity. A second failure before rebuild would usually be fatal.',
+        sourceBlocks: ['A','B','C','Parity'],
+        disks: [
+          { label: 'Disk 1', cells: ['A1','B2','P3','A4','-','-'] },
+          { label: 'Disk 2', cells: ['B1','P2','A3','B4','-','-'] },
+          { label: 'Disk 3', cells: ['P1','A2','B3','P4','-','-'] }
+        ],
+        animateMap: [
+          { disk: 0, cell: 0, delay: 0 }, { disk: 1, cell: 0, delay: 1 }, { disk: 2, cell: 0, delay: 2 },
+          { disk: 0, cell: 1, delay: 3 }, { disk: 1, cell: 1, delay: 4 }, { disk: 2, cell: 1, delay: 5 },
+          { disk: 0, cell: 2, delay: 6 }, { disk: 1, cell: 2, delay: 7 }, { disk: 2, cell: 2, delay: 8 },
+          { disk: 0, cell: 3, delay: 9 }, { disk: 1, cell: 3, delay: 10 }, { disk: 2, cell: 3, delay: 11 }
+        ],
+        failureDisks: [2],
+        failureMessage: 'RAID 5 failure demo: one disk can fail and the data can still be reconstructed using distributed parity.',
+        beamTargets: [22, 49, 76]
+      },
+      raid6: {
+        title: 'RAID 6',
+        subtitle: 'Like RAID 5, but with double parity for two-drive protection.',
+        description: 'RAID 6 stores two different parity calculations for each stripe. This means the array can survive two failed drives, making it safer for larger storage sets and bigger disk sizes.',
+        min: '4',
+        fault: '2 drives',
+        storage: 'Total minus 2 drives',
+        best: 'Higher resilience',
+        advantage: 'Better protection than RAID 5, especially on large arrays where rebuild risk matters.',
+        limitation: 'More parity means slower writes and less usable storage compared to RAID 5.',
+        failure: 'Two failed drives can be tolerated. A third failed drive is usually catastrophic.',
+        sourceBlocks: ['A','B','P','Q'],
+        disks: [
+          { label: 'Disk 1', cells: ['A1','B2','P3','Q4','-','-'] },
+          { label: 'Disk 2', cells: ['B1','P2','Q3','A4','-','-'] },
+          { label: 'Disk 3', cells: ['P1','Q2','A3','B4','-','-'] },
+          { label: 'Disk 4', cells: ['Q1','A2','B3','P4','-','-'] }
+        ],
+        animateMap: [
+          { disk: 0, cell: 0, delay: 0 }, { disk: 1, cell: 0, delay: 1 }, { disk: 2, cell: 0, delay: 2 }, { disk: 3, cell: 0, delay: 3 },
+          { disk: 0, cell: 1, delay: 4 }, { disk: 1, cell: 1, delay: 5 }, { disk: 2, cell: 1, delay: 6 }, { disk: 3, cell: 1, delay: 7 },
+          { disk: 0, cell: 2, delay: 8 }, { disk: 1, cell: 2, delay: 9 }, { disk: 2, cell: 2, delay: 10 }, { disk: 3, cell: 2, delay: 11 },
+          { disk: 0, cell: 3, delay: 12 }, { disk: 1, cell: 3, delay: 13 }, { disk: 2, cell: 3, delay: 14 }, { disk: 3, cell: 3, delay: 15 }
+        ],
+        failureDisks: [1, 3],
+        failureMessage: 'RAID 6 failure demo: even if two drives fail, the array can still be rebuilt because two parity values are stored per stripe.',
+        beamTargets: [14, 38, 62, 86]
+      },
+      raid10: {
+        title: 'RAID 10',
+        subtitle: 'Mirroring and striping are combined for speed and resilience.',
+        description: 'RAID 10 first mirrors pairs of drives, then stripes data across those mirrored pairs. It gives strong performance and faster rebuilds than parity-based arrays, but only half of the raw capacity is usable.',
+        min: '4',
+        fault: 'Depends on mirror pairs',
+        storage: '50%',
+        best: 'High performance + redundancy',
+        advantage: 'Fast reads and writes with better rebuild behavior than parity-based RAID levels.',
+        limitation: 'Usable capacity is reduced because half the disks store mirrored copies.',
+        failure: 'Multiple drive failures may be tolerated, as long as the failures do not hit both drives in the same mirror pair.',
+        sourceBlocks: ['A','B','C','D'],
+        disks: [
+          { label: 'Disk 1', cells: ['A','C','-','-','-','-'] },
+          { label: 'Disk 2', cells: ['A','C','-','-','-','-'] },
+          { label: 'Disk 3', cells: ['B','D','-','-','-','-'] },
+          { label: 'Disk 4', cells: ['B','D','-','-','-','-'] }
+        ],
+        animateMap: [
+          { disk: 0, cell: 0, delay: 0 }, { disk: 1, cell: 0, delay: 0 },
+          { disk: 2, cell: 0, delay: 1 }, { disk: 3, cell: 0, delay: 1 },
+          { disk: 0, cell: 1, delay: 2 }, { disk: 1, cell: 1, delay: 2 },
+          { disk: 2, cell: 1, delay: 3 }, { disk: 3, cell: 1, delay: 3 }
+        ],
+        failureDisks: [1],
+        failureMessage: 'RAID 10 failure demo: one disk in a mirrored pair can fail and the pair still works from its surviving mirror.',
+        beamTargets: [14, 38, 62, 86]
+      }
+    };
+
+    const els = {
+      raidTitle: document.getElementById('raidTitle'),
+      raidSubtitle: document.getElementById('raidSubtitle'),
+      raidDescription: document.getElementById('raidDescription'),
+      statMin: document.getElementById('statMin'),
+      statFault: document.getElementById('statFault'),
+      statStorage: document.getElementById('statStorage'),
+      statBest: document.getElementById('statBest'),
+      raidAdvantage: document.getElementById('raidAdvantage'),
+      raidLimitation: document.getElementById('raidLimitation'),
+      failureNote: document.getElementById('failureNote'),
+      diskBank: document.getElementById('diskBank'),
+      dataRibbon: document.getElementById('dataRibbon'),
+      arrowZone: document.getElementById('arrowZone'),
+      raidSelect: document.getElementById('raidSelect'),
+      speedRange: document.getElementById('speedRange'),
+      playPauseBtn: document.getElementById('playPauseBtn'),
+      replayBtn: document.getElementById('replayBtn'),
+      failBtn: document.getElementById('failBtn')
+    };
+
+    const raidCards = [...document.querySelectorAll('.raid-card')];
+
+    let currentRaid = 'raid0';
+    let animationSpeed = Number(els.speedRange.value);
+    let isPlaying = true;
+    let isFailureMode = false;
+    let timeouts = [];
+
+    function clearTimers() {
+      timeouts.forEach(clearTimeout);
+      timeouts = [];
+    }
+
+    function classifyBlock(block) {
+      if (block === '-' || block === '') return { cls: 'empty', label: 'Empty' };
+      if (/^P|Parity/i.test(block)) return { cls: 'p', label: block };
+      if (/^Q/i.test(block)) return { cls: 'p', label: block };
+      if (/\*/.test(block)) return { cls: 'c', label: block.replace('*', '') };
+      if (/^A/i.test(block)) return { cls: currentRaid === 'raid1' || currentRaid === 'raid10' ? 'copy' : 'a', label: block };
+      if (/^B/i.test(block)) return { cls: currentRaid === 'raid1' || currentRaid === 'raid10' ? 'copy' : 'b', label: block };
+      if (/^C/i.test(block)) return { cls: currentRaid === 'raid1' || currentRaid === 'raid10' ? 'copy' : 'c', label: block };
+      if (/^D/i.test(block)) return { cls: 'copy', label: block };
+      return { cls: 'copy', label: block };
+    }
+
+    function buildDataRibbon(sourceBlocks) {
+      els.dataRibbon.innerHTML = '';
+      sourceBlocks.forEach((block, index) => {
+        const div = document.createElement('div');
+        const type = /^P|Parity/i.test(block) ? 'p' : /^Q/i.test(block) ? 'p' : /^A/i.test(block) ? 'a' : /^B/i.test(block) ? 'b' : /^C/i.test(block) ? 'c' : 'copy';
+        div.className = `source-block ${type}`;
+        div.textContent = block;
+        div.style.animationDelay = `${index * 0.15}s`;
+        els.dataRibbon.appendChild(div);
+      });
+    }
+
+    function buildBeams(targets) {
+      els.arrowZone.innerHTML = '';
+      targets.forEach((left, index) => {
+        const beam = document.createElement('div');
+        beam.className = 'beam';
+        beam.style.left = '12%';
+        beam.style.width = `${Math.max(20, left - 8)}%`;
+        beam.style.top = `${12 + index * 16}px`;
+        beam.style.animationDelay = `${index * 0.2}s`;
+        els.arrowZone.appendChild(beam);
+      });
+    }
+
+    function buildDisks(raid) {
+      els.diskBank.innerHTML = '';
+      raid.disks.forEach((disk, diskIndex) => {
+        const diskEl = document.createElement('div');
+        diskEl.className = 'disk';
+        diskEl.dataset.index = diskIndex;
+        const title = document.createElement('div');
+        title.className = 'disk-label';
+        title.textContent = disk.label;
+        const slots = document.createElement('div');
+        slots.className = 'slots';
+        disk.cells.forEach((block, cellIndex) => {
+          const cell = document.createElement('div');
+          const { cls, label } = classifyBlock(block);
+          cell.className = `cell ${cls}`;
+          cell.dataset.disk = diskIndex;
+          cell.dataset.cell = cellIndex;
+          cell.dataset.kind = cls;
+          cell.textContent = label;
+          if (cls === 'empty') cell.textContent = '—';
+          slots.appendChild(cell);
+        });
+        diskEl.appendChild(title);
+        diskEl.appendChild(slots);
+        els.diskBank.appendChild(diskEl);
+      });
+    }
+
+    function updateText(raid) {
+      els.raidTitle.textContent = raid.title;
+      els.raidSubtitle.textContent = raid.subtitle;
+      els.raidDescription.textContent = raid.description;
+      els.statMin.textContent = raid.min;
+      els.statFault.textContent = raid.fault;
+      els.statStorage.textContent = raid.storage;
+      els.statBest.textContent = raid.best;
+      els.raidAdvantage.textContent = raid.advantage;
+      els.raidLimitation.textContent = raid.limitation;
+      els.failureNote.textContent = isFailureMode ? raid.failureMessage : raid.failure;
+    }
+
+    function hideAllCells() {
+      document.querySelectorAll('.cell').forEach(cell => {
+        cell.classList.remove('show', 'failed');
+      });
+    }
+
+    function showAllVisibleImmediately() {
+      document.querySelectorAll('.cell').forEach(cell => {
+        const kind = cell.dataset.kind;
+        if (kind !== 'empty') cell.classList.add('show');
+      });
+      if (isFailureMode) applyFailure();
+    }
+
+    function animateCells(raid) {
+      clearTimers();
+      hideAllCells();
+      if (!isPlaying) {
+        showAllVisibleImmediately();
+        return;
+      }
+      raid.animateMap.forEach(step => {
+        const delayMs = step.delay * (animationSpeed / 2.6);
+        const timer = setTimeout(() => {
+          const selector = `.cell[data-disk="${step.disk}"][data-cell="${step.cell}"]`;
+          const cell = document.querySelector(selector);
+          if (cell && cell.dataset.kind !== 'empty') cell.classList.add('show');
+        }, delayMs);
+        timeouts.push(timer);
+      });
+      const finalTimer = setTimeout(() => {
+        if (isFailureMode) applyFailure();
+      }, (raid.animateMap.length + 1) * (animationSpeed / 2.6));
+      timeouts.push(finalTimer);
+    }
+
+    function applyFailure() {
+      const raid = raidData[currentRaid];
+      raid.failureDisks.forEach(idx => {
+        const disk = document.querySelector(`.disk[data-index="${idx}"]`);
+        if (!disk) return;
+        disk.querySelectorAll('.cell').forEach((cell) => {
+          cell.classList.remove('show');
+          if (cell.dataset.kind !== 'empty') {
+            cell.classList.add('failed', 'show');
+            cell.textContent = 'FAIL';
+          }
+        });
+      });
+    }
+
+    function resetFailureText() {
+      const raid = raidData[currentRaid];
+      document.querySelectorAll('.disk').forEach((diskEl, diskIndex) => {
+        const diskData = raid.disks[diskIndex];
+        if (!diskData) return;
+        diskData.cells.forEach((block, cellIndex) => {
+          const cell = diskEl.querySelector(`.cell[data-cell="${cellIndex}"]`);
+          if (!cell) return;
+          const { label } = classifyBlock(block);
+          cell.textContent = label === 'Empty' ? '—' : label;
+          cell.classList.remove('failed');
+        });
+      });
+    }
+
+    function setActiveCard(key) {
+      raidCards.forEach(card => card.classList.toggle('active', card.dataset.raid === key));
+      els.raidSelect.value = key;
+    }
+
+    function render(key = currentRaid) {
+      currentRaid = key;
+      const raid = raidData[key];
+      resetFailureText();
+      updateText(raid);
+      buildDataRibbon(raid.sourceBlocks);
+      buildBeams(raid.beamTargets);
+      buildDisks(raid);
+      animateCells(raid);
+      setActiveCard(key);
+    }
+
+    raidCards.forEach(card => {
+      card.addEventListener('click', () => {
+        isFailureMode = false;
+        render(card.dataset.raid);
+      });
+    });
+
+    els.raidSelect.addEventListener('change', (e) => {
+      isFailureMode = false;
+      render(e.target.value);
+    });
+
+    els.speedRange.addEventListener('input', (e) => {
+      animationSpeed = Number(e.target.value);
+      document.documentElement.style.setProperty('--anim-duration', `${animationSpeed}ms`);
+      render(currentRaid);
+    });
+
+    els.playPauseBtn.addEventListener('click', () => {
+      isPlaying = !isPlaying;
+      els.playPauseBtn.textContent = isPlaying ? 'Pause Animation' : 'Play Animation';
+      render(currentRaid);
+    });
+
+    els.replayBtn.addEventListener('click', () => {
+      isFailureMode = false;
+      render(currentRaid);
+    });
+
+    els.failBtn.addEventListener('click', () => {
+      isFailureMode = !isFailureMode;
+      render(currentRaid);
+    });
+
+    render('raid0');
+  </script>
+</body>
+</html>
